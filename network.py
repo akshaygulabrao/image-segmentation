@@ -143,10 +143,11 @@ def main():
     
     trainer = pl.Trainer(
         max_epochs=10,
-        accelerator='cpu',
+        accelerator='mps',
         devices=1,
         enable_progress_bar=True,
-        log_every_n_steps=10
+        log_every_n_steps=10,
+        overfit_batches=0.1
     )
     
     trainer.fit(model, datamodule=data_module)
