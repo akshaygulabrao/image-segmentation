@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms, models
 from torchvision.datasets import VOCSegmentation
 import pytorch_lightning as pl
-from torchmetrics import Accuracy
+from torchmetrics import Accuracy,JaccardIndex
 
 class VOC2012DataModule(pl.LightningDataModule):
     def __init__(self, batch_size=8, num_workers=0):
@@ -88,6 +88,11 @@ class MobileNetV2Segmentation(pl.LightningModule):
         self.train_acc = Accuracy(task="multiclass", num_classes=num_classes, ignore_index=255)
         self.val_acc = Accuracy(task="multiclass", num_classes=num_classes, ignore_index=255)
     
+        self.train_iou = JaccardIndex(task="multiclass",
+                                      num_classes=num_classes,
+                                      ignore_index=255,
+                                      average="macro")
+
     def forward(self, x):
         # Encoder
         features = self.backbone(x)
@@ -111,9 +116,13 @@ class MobileNetV2Segmentation(pl.LightningModule):
         # Compute accuracy
         preds = torch.argmax(logits, dim=1)
         acc = self.train_acc(preds, masks)
+
+        iou = self.train_iou(preds, masks)
         
         self.log('train_loss', loss, on_step=True, on_epoch=True)
         self.log('train_acc', acc, on_step=True, on_epoch=True)
+        self.log('train_iou',iou,on_step=True, on_epoch=True)
+
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -146,7 +155,8 @@ def main():
         accelerator='cpu',
         devices=1,
         enable_progress_bar=True,
-        log_every_n_steps=10
+        log_every_n_steps=10,
+        overfit_batches=0.1
     )
     
     trainer.fit(model, datamodule=data_module)

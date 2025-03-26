@@ -1,5 +1,16 @@
 # Image Segmentation Benchmarking
-Small CPU-based model training Pascal-VOC dataset for image segmentation.
+Small CPU-based model training Pascal-VOC dataset for image segmentation. The network correctly overtrains on an extremely small sample size. 
+
+## Installation
+Use `uv` package management tool to install the relevant packages. then 
+
+```bash
+uv run python network.py
+```
+
+to start a training script for the network.
+
+
 
 
 ## Pascal VOC 2012 Dataset
