@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms, models
 from torchvision.datasets import VOCSegmentation
 import pytorch_lightning as pl
-from torchmetrics import Accuracy
+from torchmetrics import Accuracy,JaccardIndex
 
 class VOC2012DataModule(pl.LightningDataModule):
     def __init__(self, batch_size=8, num_workers=0):
@@ -87,6 +87,8 @@ class MobileNetV2Segmentation(pl.LightningModule):
         # Metrics
         self.train_acc = Accuracy(task="multiclass", num_classes=num_classes, ignore_index=255)
         self.val_acc = Accuracy(task="multiclass", num_classes=num_classes, ignore_index=255)
+        self.val_iou = JaccardIndex(task="multiclass", num_classes=num_classes, ignore_index=255)
+        self.train_iou = JaccardIndex(task="multiclass", num_classes=num_classes, ignore_index=255)
     
     def forward(self, x):
         # Encoder
@@ -111,9 +113,11 @@ class MobileNetV2Segmentation(pl.LightningModule):
         # Compute accuracy
         preds = torch.argmax(logits, dim=1)
         acc = self.train_acc(preds, masks)
+        iou = self.train_iou(preds, masks)
         
         self.log('train_loss', loss, on_step=True, on_epoch=True)
         self.log('train_acc', acc, on_step=True, on_epoch=True)
+        self.log('train_iou', iou, on_step=True, on_epoch=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -128,9 +132,11 @@ class MobileNetV2Segmentation(pl.LightningModule):
         
         preds = torch.argmax(logits, dim=1)
         acc = self.val_acc(preds, masks)
+        iou = self.train_iou(preds, masks)
         
         self.log('val_loss', loss, on_epoch=True)
         self.log('val_acc', acc, on_epoch=True)
+        self.log('val_iou', iou, on_epoch=True)
         return loss
     
     def configure_optimizers(self):
@@ -143,7 +149,7 @@ def main():
     
     trainer = pl.Trainer(
         max_epochs=10,
-        accelerator='mps',
+        accelerator='cpu',
         devices=1,
         enable_progress_bar=True,
         log_every_n_steps=10,
