@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import ListedColormap
 
-from network import MobileNetV2Segmentation, VOC2012DataModule
+from train import MobileNetV2Segmentation, VOC2012DataModule
 
 voc_labels = {
     0: 'background',
@@ -115,7 +115,7 @@ def visualize_multi_class_masks(original_image, true_mask, pred_mask, num_classe
     plt.show()
 
 if __name__ == '__main__':
-    data_module = VOC2012DataModule(batch_size=4, num_workers=0)
+    data_module = VOC2012DataModule(batch_size=4)
     data_module.setup()
 
     val_dataset = data_module.val_dataset
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     
     # Load the checkpoint
     model = MobileNetV2Segmentation.load_from_checkpoint(
-        checkpoint_path="lightning_logs/version_6/checkpoints/epoch=9-step=360.ckpt"
+        checkpoint_path="~/image-segmentation/artifacts/model-3pg4ly5b:v100/model.ckpt"
     )
 
     # Optional: if you want to use it for inference only

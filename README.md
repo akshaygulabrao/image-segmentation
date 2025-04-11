@@ -1,17 +1,20 @@
 # Image Segmentation Benchmarking
-Small CPU-based model training Pascal-VOC dataset for image segmentation. The network correctly overtrains on an extremely small sample size.
 
+This repository has training scripts for running a basic image-segmentation network. 
+Small model training Pascal-VOC dataset for image segmentation.
 Performance is measured through the arithmetic mean of IoU, excluding the background (class_idx 0) and the unlabeled portions (class_idx 255). Performance only considered on the validation set. 
 
 Currently the network achieves 0.05 IoU on the validation set. 
 
 ## Installation
-Check `requirements.txt` for dependencies. This was tested on python 3.10. 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python network.py
-``` 
+This was trained using [runpod.io](https://www.runpod.io/console/pods). The docker image used can be found at [dockerhub](https://hub.docker.com/repositories/akshaygulabrao).
+
+## Training Code
+
+
+
+
+
 
 ## Tensorboard Metrics
 Check metrics via tensorboard

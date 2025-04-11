@@ -2,3 +2,8 @@ data/
 lightning_logs
 .venv/
 __pycache__
+image-segmentation
+wandb
+.scale_batch_size*
+checkpoints
+artifacts
