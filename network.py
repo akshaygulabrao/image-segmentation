@@ -89,9 +89,14 @@ class MobileNetV2Segmentation(pl.LightningModule):
         self.val_acc = Accuracy(task="multiclass", num_classes=num_classes, ignore_index=255)
     
         self.train_iou = JaccardIndex(task="multiclass",
-                                      num_classes=num_classes,
-                                      ignore_index=255,
-                                      average="macro")
+                                    num_classes=num_classes,
+                                    ignore_index=255,
+                                    average="none")
+        
+        self.val_iou = JaccardIndex(task="multiclass",
+                                  num_classes=num_classes,
+                                  ignore_index=255,
+                                  average="none")
 
     def forward(self, x):
         # Encoder
@@ -118,10 +123,10 @@ class MobileNetV2Segmentation(pl.LightningModule):
         acc = self.train_acc(preds, masks)
 
         iou = self.train_iou(preds, masks)
-        
+        iou = iou[1:].mean() # getting the bg correct doesn't count
         self.log('train_loss', loss, on_step=True, on_epoch=True)
         self.log('train_acc', acc, on_step=True, on_epoch=True)
-        self.log('train_iou',iou,on_step=True, on_epoch=True)
+        self.log('train_iou', iou, on_step=True, on_epoch=True)
 
         return loss
     
@@ -138,8 +143,13 @@ class MobileNetV2Segmentation(pl.LightningModule):
         preds = torch.argmax(logits, dim=1)
         acc = self.val_acc(preds, masks)
         
+        # Compute IoU for validation
+        iou = self.val_iou(preds, masks)
+        iou = iou[1:].mean() # exclude background class
+        
         self.log('val_loss', loss, on_epoch=True)
         self.log('val_acc', acc, on_epoch=True)
+        self.log('val_iou', iou, on_epoch=True)
         return loss
     
     def configure_optimizers(self):
