@@ -5,56 +5,10 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
 
-def get_voc_dataloaders(batch_size=4, img_size=256, data_dir='./data'):
-    """
-    Returns train and validation dataloaders for Pascal VOC segmentation dataset.
-    
-    Args:
-        batch_size: Number of samples per batch
-        img_size: Size to resize images to (square)
-        data_dir: Directory to store/download dataset
-    Returns:
-        train_loader: Training set dataloader
-        val_loader: Validation set dataloader
-    """
-    # Define transformations
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((img_size, img_size)),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
-    
-    target_transform = transforms.Compose([
-        transforms.Resize((img_size, img_size), interpolation=transforms.InterpolationMode.NEAREST),
-        transforms.Lambda(lambda x: torch.as_tensor(np.array(x), dtype=torch.int64))
-    ])
-    
-    # Download and load datasets
-    train_set = torchvision.datasets.VOCSegmentation(
-        root=data_dir,
-        year='2012',
-        image_set='train',
-        download=True,
-        transform=transform,
-        target_transform=target_transform
-    )
-    
-    val_set = torchvision.datasets.VOCSegmentation(
-        root=data_dir,
-        year='2012',
-        image_set='val',
-        download=True,
-        transform=transform,
-        target_transform=target_transform
-    )
-    
-    # Create dataloaders
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=False)
-    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
-    
-    return train_loader, val_loader
+from network import MobileNetV2Segmentation,VOC2012DataModule
 
-def visualize_sample(images, masks, num_samples=4):
+
+def visualize_sample(images, masks, model):
     """
     Visualizes samples from the dataloader with class labels.
     
@@ -98,10 +52,10 @@ def visualize_sample(images, masks, num_samples=4):
     images = images.detach().cpu().numpy().transpose(0, 2, 3, 1)
     masks = masks.detach().cpu().numpy()
     
-    fig, axes = plt.subplots(min(num_samples, len(images)), 2, figsize=(10, 10))
+    fig, axes = plt.subplots(min(1, len(images)), 2, figsize=(10, 10))
     
-    for i in range(min(num_samples, len(images))):
-        if num_samples > 1:
+    for i in range(min(1, len(images))):
+        if 1 > 1:
             ax_img = axes[i, 0]
             ax_mask = axes[i, 1]
         else:
@@ -132,15 +86,27 @@ def visualize_sample(images, masks, num_samples=4):
 
 
 if __name__ == '__main__':
-    # Get dataloaders
-    train_loader, val_loader = get_voc_dataloaders(batch_size=4, img_size=256)
+
+    data_module = VOC2012DataModule(batch_size=4, num_workers=0)
+    data_module.setup()
     
-    print(f"Train batches: {len(train_loader)}")
-    print(f"Val batches: {len(val_loader)}")
+    val_dataset = data_module.val_dataset
+    val_dataloader = DataLoader(
+            val_dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=0
+    )
+    X,y = val_dataloader[0]
+
+    print(X.shape, y.shape)
+    # Load the checkpoint
+    model = MobileNetV2Segmentation.load_from_checkpoint(
+        checkpoint_path="lightning_logs/version_6/checkpoints/epoch=9-step=360.ckpt"
+    )
+
+    # Optional: if you want to use it for inference only
+    model.eval()
+
+
     
-    # Visualize a sample batch
-    images, masks = next(iter(train_loader))
-    print(f"Image batch shape: {images.shape}")
-    print(f"Mask batch shape: {masks.shape}")
-    
-    visualize_sample(images, masks)
