@@ -7,3 +7,4 @@ wandb
 .scale_batch_size*
 checkpoints
 artifacts
+tb_logs

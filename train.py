@@ -8,9 +8,20 @@ from torchvision.datasets import VOCSegmentation
 from torchmetrics import Accuracy, JaccardIndex
 
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.tuner.tuning import Tuner
+
+description = """
+dataset: Pascal VOC 2012
+network: MobileNet V2 (pretrained on imagenet) with basic upsampling;\
+backbone has frozen weights
+preprocessing: [imagenet normalization, resize to 256^2]
+data augmentation: None
+loss fn: cross entropy loss
+optimizer: Adam defaults
+epochs: 50
+"""
 
 class VOC2012DataModule(pl.LightningDataModule):
     def __init__(self, batch_size):
@@ -66,7 +77,7 @@ class VOC2012DataModule(pl.LightningDataModule):
         )
 
 class MobileNetV2Segmentation(pl.LightningModule):
-    def __init__(self, num_classes=21, learning_rate=1e-3):
+    def __init__(self, num_classes=21):
         super().__init__()
         self.save_hyperparameters()
         
@@ -129,35 +140,41 @@ class MobileNetV2Segmentation(pl.LightningModule):
         return loss
     
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        return torch.optim.Adam(self.parameters(), lr=1e-3)
 
 def main():
-    dry_run = os.getenv('DRY_RUN', '0') == '1'
-    gpus = os.getenv('GPUS','0') == '1'
-    wandb_logger = WandbLogger(project="image-segmentation",log_model=True)
+    wandb_api_key = os.getenv("WANDB_API_KEY")
+    os.system(f"wandb login --relogin {wandb_api_key}")
+
+    if torch.cuda.is_available():
+        # Use Weights & Biases if GPU is available
+        logger = WandbLogger(project="image-segmentation",
+                             notes=description, log_model=True)
+    else:
+        # Fallback to TensorBoard for CPU runs
+        logger = TensorBoardLogger("tb_logs", name="cpu_runs")  # Logs to ./tb_logs/cpu_
+    
     checkpoint_callback = ModelCheckpoint(
         monitor="val_iou",          # Track validation IoU
         mode="max",                 # Save model with max IoU
         dirpath="checkpoints",      # Local dir (optional)
-        filename="best_model_{epoch}_{val_iou:.2f}",
-        save_top_k=1,               # Save only the best model
+        filename="model_{epoch}_{val_iou:.2f}",
         save_last=True
     )
 
     trainer_config = {
-        'max_epochs': 10 if dry_run else 50,
+        'max_epochs': 50,
         'accelerator': 'auto',
         'devices': 'auto',
         'enable_progress_bar': True,
         'log_every_n_steps': 10,
-        'overfit_batches': 5 if dry_run else 0,  # Overfit 5 batches in dry run mode
-        'logger': wandb_logger,
+        'logger': logger,
         'callbacks' : [checkpoint_callback]
     }
     
     trainer = pl.Trainer(**trainer_config)
 
-    model = MobileNetV2Segmentation(num_classes=21, learning_rate=1e-3)
+    model = MobileNetV2Segmentation(num_classes=21)
     data_module = VOC2012DataModule(batch_size=32)
     trainer.fit(model, datamodule=data_module)
 
