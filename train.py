@@ -17,7 +17,7 @@ dataset: Pascal VOC 2012
 network: MobileNet V2 (pretrained on imagenet) with basic upsampling;\
 backbone has frozen weights
 preprocessing: [imagenet normalization, resize to 256^2]
-data augmentation: None
+data augmentation: lots of geometric and color transformations
 loss fn: cross entropy loss
 optimizer: Adam defaults
 epochs: 50
@@ -29,10 +29,18 @@ class VOC2012DataModule(pl.LightningDataModule):
         self.batch_size= batch_size
         self.num_workers = os.cpu_count() // 2 - 1
         self.transform = transforms.Compose([
+            transforms.Resize((256, 256)),  # Resize first to save computation on larger operations
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.1),
+            transforms.RandomApply([transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)], p=0.8),
+            transforms.RandomApply([transforms.GaussianBlur(kernel_size=(3, 3), sigma=(0.1, 2.0))], p=0.3),
+            transforms.RandomRotation(degrees=15),
+            transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+            transforms.RandomPerspective(distortion_scale=0.2, p=0.3),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], 
                                 std=[0.229, 0.224, 0.225]),
-            transforms.Resize((256, 256))
+            transforms.RandomErasing(p=0.2, scale=(0.02, 0.2), ratio=(0.3, 3.3), value='random')
         ])
         
     def setup(self, stage=None):
@@ -82,9 +90,6 @@ class MobileNetV2Segmentation(pl.LightningModule):
         self.save_hyperparameters()
         
         self.backbone = models.mobilenet_v2(weights='DEFAULT').features
-        
-        for param in self.backbone[:14].parameters():
-            param.requires_grad = False
         
         self.decoder = nn.Sequential(
             nn.Conv2d(1280, 256, kernel_size=1),
@@ -143,11 +148,11 @@ class MobileNetV2Segmentation(pl.LightningModule):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
 
 def main():
-    wandb_api_key = os.getenv("WANDB_API_KEY")
-    os.system(f"wandb login --relogin {wandb_api_key}")
 
     if torch.cuda.is_available():
         # Use Weights & Biases if GPU is available
+        wandb_api_key = os.getenv("WANDB_API_KEY")
+        os.system(f"wandb login --relogin {wandb_api_key}")
         logger = WandbLogger(project="image-segmentation",
                              notes=description, log_model=True)
     else:
