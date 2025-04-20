@@ -10,9 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --user -r requirements.txt
-
+    
 ENV PATH=/root/.local/bin:$PATH
-COPY train.py .
+COPY . .
+RUN pip install --user -r requirements.txt
 CMD ["tail", "-f", "/dev/null"]
