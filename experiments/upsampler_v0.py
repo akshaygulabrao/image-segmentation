@@ -12,6 +12,8 @@ from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.tuner.tuning import Tuner
 
+name = "upsampler_v0"
+
 description = """
 dataset: Pascal VOC 2012
 network: MobileNet V2 (pretrained on imagenet) with basic upsampling;\

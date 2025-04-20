@@ -9,11 +9,11 @@ from torchmetrics import Accuracy, JaccardIndex
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint,EarlyStopping
 from pytorch_lightning.tuner.tuning import Tuner
 import wandb
 
-from experiments.upsampler_v0 import description,MobileNetV2Segmentation
+from experiments.upsampler_v0 import name,description,MobileNetV2Segmentation
 
 
 class VOC2012DataModule(pl.LightningDataModule):
@@ -64,7 +64,7 @@ class VOC2012DataModule(pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(
             self.val_dataset,
-            batch_size=self.batch_size,
+            batch_size=512,
             shuffle=False,
             num_workers=self.num_workers
         )
@@ -75,7 +75,7 @@ def main():
             # Use Weights & Biases if GPU is available
             wandb_api_key = os.getenv("WANDB_API_KEY")
             os.system(f"wandb login --relogin {wandb_api_key}")
-            logger = WandbLogger(project="image-segmentation",name=f"upsampler_v0_run{i}",
+            logger = WandbLogger(project="image-segmentation",group=name,name=f"{name}_run{i}",
                                 notes=description, log_model=True)
         else:
             # Fallback to TensorBoard for CPU runs
@@ -86,7 +86,14 @@ def main():
             mode="max",                 # Save model with max IoU
             dirpath="checkpoints",      # Local dir (optional)
             filename="model_{epoch}_{val_iou:.2f}",
-            save_last=True
+            save_top_k=1
+        )
+        early_stop_callback = EarlyStopping(
+            monitor="val_iou",          # Metric to monitor
+            patience=2,                # Number of epochs to wait before stopping
+            mode="max",                # We want to maximize the IoU
+            min_delta=0.001,           # Minimum change to qualify as improvement
+            verbose=True
         )
 
         trainer_config = {
@@ -96,7 +103,7 @@ def main():
             'enable_progress_bar': True,
             'log_every_n_steps': 10,
             'logger': logger,
-            'callbacks' : [checkpoint_callback]
+            'callbacks' : [checkpoint_callback, early_stop_callback]
         }
         
         trainer = pl.Trainer(**trainer_config)
