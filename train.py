@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint,EarlyStopping
 from pytorch_lightning.tuner.tuning import Tuner
 import wandb
 
-from experiments.upsampler_v0 import name,description,MobileNetV2Segmentation
+from experiments.upsampler_v1 import name,description,MobileNetV2Segmentation
 
 
 class VOC2012DataModule(pl.LightningDataModule):
@@ -22,10 +22,13 @@ class VOC2012DataModule(pl.LightningDataModule):
         self.batch_size= batch_size
         self.num_workers = os.cpu_count() // 2 - 1
         self.transform = transforms.Compose([
+            transforms.Resize((256, 256)),  # Resize first to save computation on larger operations
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.1),
+            transforms.RandomPerspective(distortion_scale=0.2, p=0.3),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], 
                                 std=[0.229, 0.224, 0.225]),
-            transforms.Resize((256, 256))
         ])
         
     def setup(self, stage=None):
