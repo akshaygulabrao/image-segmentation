@@ -1,3 +1,4 @@
-git clone git@github.com:akshaygulabrao/image-segmentation.git
-cd image-segmentation
+python3 venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 python train.py
